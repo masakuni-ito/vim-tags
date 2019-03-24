@@ -80,6 +80,14 @@ if !exists("g:vim_tags_cache_dir")
   let g:vim_tags_cache_dir = expand($HOME)
 endif
 
+if !exists("g:vim_tags_ignore_buffers")
+  let g:vim_tags_ignore_buffers = ["fzf"]
+endif
+
+if !exists('g:vim_tags_exists_tags_command')
+  let g:vim_tags_exists_tags_command = "ps aux | grep ctags | grep -v grep > /dev/null 2>&1"
+endif
+
 " Add the support for completion plugins (like YouCompleteMe or WiseComplete) (add --fields=+l)
 if g:vim_tags_use_language_field
   let g:vim_tags_project_tags_command = substitute(g:vim_tags_project_tags_command, "{OPTIONS}", '--fields=+l {OPTIONS}', "")
@@ -326,6 +334,22 @@ fun! s:generate_tags(bang, redraw)
   endif
 endfun
 
+function! s:kick_generate_tags()
+  if index(g:vim_tags_ignore_buffers, bufname(bufnr("%"))) > -1
+    return
+  endif
+
+  call system(g:vim_tags_exists_tags_command)
+  if !v:shell_error
+    return
+  endif
+
+  call s:generate_tags(0, 0)
+endfunction
+
 if g:vim_tags_auto_generate
-  au BufEnter,BufWritePost * call s:generate_tags(0, 0)
+  augroup vim_tags_kick_tags
+    autocmd!
+    autocmd BufWritePost * call s:kick_generate_tags()
+  augroup END
 endif
